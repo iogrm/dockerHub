@@ -1,31 +1,40 @@
-from django.shortcuts import render
-from rest_framework.views import APIView
 from rest_framework import status
-from ..models import *
-
 from rest_framework import viewsets
-from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import permissions
 from datetime import datetime
+from ..models import *
+import json
+import docker
 
 
 class RunViewSet(viewsets.ViewSet):
     def run(self, request, pk=None):
+
+        name = pk
+        the_app = ""
         try:
-            name = pk
-            the_app = ""
+            the_app = App.objects.get(name=name)
+        except App.DoesNotExist:
+            return Response({'the status': 'name is not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            try:
-                the_app = App.objects.get(name=name)
-            except App.DoesNotExist:
-                return Response({'the status': 'name is not found.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            client = docker.from_env()
+            the_app.envs = json.loads(the_app.envs.replace("\'", "\""))
 
-            history = History()
-            history.name = the_app.name
-            history.envs = the_app.envs
-            history.startAt = datetime.now()
-            history.save()
+            print('running '+the_app.name)
+            client = docker.from_env()
+            docker_container = client.containers.run(image=the_app.image,
+                                                     command=the_app.command, environment=the_app.envs,
+                                                     detach=True)
+            container = Container()
+            container.containerId = docker_container.id
+            container.name = docker_container.name
+            container.image = docker_container.image
+            container.command = the_app.command
+            container.createdAt = datetime.now()
+            container.envs = the_app.envs
+            container.appName = the_app.name
+            container.save()
             return Response({'status': 'OK'}, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -35,15 +44,23 @@ class RunViewSet(viewsets.ViewSet):
 
     def history(self, request):
         try:
-            histories = History.objects.all()
+            client = docker.from_env()
+            containers_list = client.containers.list()
+            print(containers_list)
+            containers = Container.objects.all()
             data = []
-            for history in histories:
-                isRunning = False
+            for container in containers:
+                the_container = client.containers.get(container.name)
+                stat = the_container.status
                 data.append({
-                    'name': history.name,
-                    'envs': history.envs,
-                    'startAt': history.startAt,
-                    'isRunning': isRunning,
+                    'id': container.containerId,
+                    'name': container.name,
+                    'image': container.image,
+                    'command': container.command,
+                    'envs': container.envs,
+                    'createdAt': container.createdAt,
+                    'status': stat,
+                    'app': container.appName,
                 })
             return Response({'data': data}, status=status.HTTP_200_OK)
         except:
