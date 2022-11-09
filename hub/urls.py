@@ -1,19 +1,15 @@
-from rest_framework.routers import DefaultRouter
-from django.conf.urls import url, include
 from django.urls import path
-from django.contrib import admin
-from rest_framework import renderers
 from hub.views.hub_views import HubViewSet
 from hub.views.run_views import RunViewSet
 
-app_crud = HubViewSet.as_view({
+app_details = HubViewSet.as_view({
+    'get': 'getApp',
+    'put': 'edit',
+    'delete': 'delete',
+})
+app_list = HubViewSet.as_view({
     'get': 'getAll',
     'post': 'create',
-    'put': 'edit',
-    'delete': 'remove',
-})
-app_get_all = HubViewSet.as_view({
-    'get': 'get',
 })
 run_app = RunViewSet.as_view({
     'get': 'run',
@@ -21,10 +17,14 @@ run_app = RunViewSet.as_view({
 runs_history = RunViewSet.as_view({
     'get': 'history',
 })
+prune_history = RunViewSet.as_view({
+    'get': 'prune',
+})
 
 urlpatterns = [
-    path('app/', app_crud, name='crud_app'),
-    path('app/<str:pk>/', app_get_all, name='get_all_apps'),
+    path('app/', app_list, name='app_list'),
+    path('app/<str:pk>/', app_details, name='app_details'),
     path('run/<str:pk>/', run_app, name='run_app'),
     path('history/', runs_history, name='runs_history'),
+    path('prune/', prune_history, name='prune_history'),
 ]

@@ -10,12 +10,10 @@ import docker
 class RunViewSet(viewsets.ViewSet):
     def run(self, request, pk=None):
 
-        name = pk
-        the_app = ""
         try:
-            the_app = App.objects.get(name=name)
+            the_app = App.objects.get(name=pk)
         except App.DoesNotExist:
-            return Response({'the status': 'name is not found.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'the status': 'name is not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             client = docker.from_env()
@@ -29,7 +27,7 @@ class RunViewSet(viewsets.ViewSet):
             container = Container()
             container.containerId = docker_container.id
             container.name = docker_container.name
-            container.image = docker_container.image
+            container.image = the_app.image
             container.command = the_app.command
             container.createdAt = datetime.now()
             container.envs = the_app.envs
@@ -49,9 +47,13 @@ class RunViewSet(viewsets.ViewSet):
             print(containers_list)
             containers = Container.objects.all()
             data = []
+            container_status = ""
             for container in containers:
-                the_container = client.containers.get(container.name)
-                stat = the_container.status
+                try:
+                    docker_container = client.containers.get(container.name)
+                    container_status = docker_container.status
+                except:
+                    container_status = "removed"
                 data.append({
                     'id': container.containerId,
                     'name': container.name,
@@ -59,10 +61,49 @@ class RunViewSet(viewsets.ViewSet):
                     'command': container.command,
                     'envs': container.envs,
                     'createdAt': container.createdAt,
-                    'status': stat,
+                    'status': container_status,
                     'app': container.appName,
                 })
             return Response({'data': data}, status=status.HTTP_200_OK)
-        except:
+
+        except Exception as e:
+            print("error in exception is: ", e)
+            return Response({'status': "Internal Server Error, We'll Check It Later"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def prune(self, request):
+        try:
+            client = docker.from_env()
+            containers = Container.objects.all()
+            for container in containers:
+                try:
+                    client.containers.get(container.name)
+                except:
+                    Container.objects.get(
+                        containerId=container.containerId).delete()
+
+            containers = Container.objects.all()
+            data = []
+            container_status = ""
+            for container in containers:
+                try:
+                    docker_container = client.containers.get(container.name)
+                    container_status = docker_container.status
+                except:
+                    container_status = "removed"
+                data.append({
+                    'id': container.containerId,
+                    'name': container.name,
+                    'image': container.image,
+                    'command': container.command,
+                    'envs': container.envs,
+                    'createdAt': container.createdAt,
+                    'status': container_status,
+                    'app': container.appName,
+                })
+            return Response({'data': data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print("error in exception is: ", e)
             return Response({'status': "Internal Server Error, We'll Check It Later"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)

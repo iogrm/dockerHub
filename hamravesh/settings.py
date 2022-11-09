@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+import environ
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -81,6 +82,20 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Postgres Database
+# env = environ.Env()
+# environ.Env.read_env()
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#         'NAME': env('DATABASE_NAME'),
+#         'USER': env('POSGERES_USER'),
+#         'PASSWORD': env('POSGERES_PASS'),
+#         'HOST': env('POSGRESS_URL'),
+#         'PORT': env('POSTGRES_PORT'),
+#     }
+# }
 
 
 # Password validation
